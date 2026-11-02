@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Development Appraisal Tool</title>
+<meta name="description" content="Residential development appraisal and residual land value tool (UK, GBP) with a built-in learning layer.">
+<style>
+:root{
+  --bg:#f4f6f8; --card:#ffffff; --ink:#17202a; --muted:#5d6b78; --line:#dde3e9;
+  --accent:#1f5fa8; --accent-soft:#e7f0fa;
+  --good:#1c7c46; --good-bg:#e3f4ea; --warn:#9a6200; --warn-bg:#fff3d6; --bad:#b3261e; --bad-bg:#fde7e5;
+  --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161c; --card:#1a2129; --ink:#e6ebf0; --muted:#9aa7b4; --line:#2c3642;
+    --accent:#6aa6ec; --accent-soft:#1d2b3b;
+    --good:#5fcf8c; --good-bg:#16301f; --warn:#f0b54a; --warn-bg:#3a2d10; --bad:#ff8a80; --bad-bg:#3b1a18;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header.top{background:var(--card);border-bottom:1px solid var(--line);padding:14px 16px}
+header.top h1{margin:0;font-size:20px}
+header.top p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.disclaimer{margin:12px 16px 0;padding:10px 14px;border-radius:var(--radius);background:var(--warn-bg);color:var(--ink);border:1px solid var(--warn);font-size:13.5px}
+.disclaimer strong{color:var(--warn)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px}
+.toolbar input[type=text]{flex:1 1 200px;min-width:0}
+.toolbar select{flex:0 1 200px;min-width:0}
+button,.btn{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--bad)}
+button.link{border:none;background:none;color:var(--accent);padding:4px 0}
+input,select{font:inherit;font-size:15px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+input:disabled{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.mode{display:flex;gap:0;margin:0 16px 12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.mode button{flex:1;border:none;border-radius:0;padding:10px;background:transparent}
+.mode button.on{background:var(--accent);color:#fff}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:0 16px 90px}
+@media (min-width:1000px){
+  .layout{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);padding-bottom:24px}
+  .results{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}
+  .mobilebar{display:none!important}
+}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:6px}
+.card > .sub{margin:0 0 12px;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.field label{display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;margin-bottom:4px}
+.field .help{color:var(--muted);font-size:12.5px;margin-top:4px}
+.inwrap{position:relative;display:flex;align-items:center}
+.inwrap .pre,.inwrap .suf{position:absolute;color:var(--muted);font-size:14px;pointer-events:none}
+.inwrap .pre{left:10px}.inwrap .suf{right:10px}
+.inwrap.haspre input{padding-left:24px}
+.inwrap.hassuf input{padding-right:64px}
+.info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);font-size:11px;font-weight:700;font-style:normal;padding:0;background:transparent;cursor:pointer;flex:none;line-height:1}
+.info:hover{background:var(--accent);color:#fff}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-top:8px}
+.check input{width:auto;margin-top:3px}
+.calcnote{font-size:13px;color:var(--muted);margin-top:6px}
+.calcnote b{color:var(--ink)}
+/* unit tables */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+table{border-collapse:collapse;width:100%}
+table.units th,table.units td{padding:4px;text-align:left;vertical-align:middle}
+table.units th{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+table.units input{padding:7px 8px;font-size:14px;min-width:70px}
+table.units td.nm input{min-width:130px}
+table.units td.out{font-size:13px;white-space:nowrap;color:var(--muted)}
+table.units td.x button{padding:6px 9px}
+.totals{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:10px;font-size:14px}
+.totals span b{font-variant-numeric:tabular-nums}
+/* results */
+.headline{border-radius:10px;padding:14px;background:var(--accent-soft);margin-bottom:12px}
+.headline .lbl{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.headline .big{font-size:30px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.15}
+.headline .small{font-size:13px;color:var(--muted)}
+.verdict{padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:12px;border:1px solid transparent}
+.good{background:var(--good-bg);color:var(--good);border-color:var(--good)}
+.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px}
+.kpi .lbl{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .val{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .note{font-size:12px;color:var(--muted)}
+.kpi.good,.kpi.warn,.kpi.bad{border-width:1px}
+.kpi.good .val{color:var(--good)}.kpi.warn .val{color:var(--warn)}.kpi.bad .val{color:var(--bad)}
+h3{font-size:15px;margin:16px 0 8px;display:flex;align-items:center;gap:6px}
+.bars .row{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13px;margin-bottom:6px}
+.bars .track{height:14px;background:var(--bg);border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+.bars .fill{height:100%;border-radius:7px}
+.bars .amt{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+table.sens{font-size:13px;font-variant-numeric:tabular-nums}
+table.sens th,table.sens td{border:1px solid var(--line);padding:6px 4px;text-align:center}
+table.sens th{background:var(--bg);font-weight:600;font-size:12px}
+table.sens td.good,table.sens td.warn,table.sens td.bad{border-color:var(--line)}
+table.sens td.base{outline:2px solid var(--ink);outline-offset:-2px;font-weight:700}
+.sensnote{font-size:12px;color:var(--muted);margin-top:6px}
+details.how{margin-top:16px;border:1px solid var(--line);border-radius:10px;padding:0 12px}
+details.how summary{cursor:pointer;font-weight:600;padding:10px 0}
+.how ol{padding-left:20px;margin:0 0 10px}
+.how li{margin-bottom:8px;font-size:13.5px}
+.how .eq{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);padding:2px 5px;border-radius:4px;display:inline-block;margin-top:2px;overflow-wrap:anywhere}
+table.cf{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.cf th,table.cf td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:right}
+table.cf th:first-child,table.cf td:first-child,table.cf th:nth-child(2),table.cf td:nth-child(2){text-align:left}
+.mobilebar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:5;box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+.mobilebar .m1{font-size:12px;color:var(--muted)}
+.mobilebar .m2{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.pill{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;border:1px solid}
+dialog{border:1px solid var(--line);border-radius:14px;max-width:min(520px,calc(100vw - 32px));padding:18px;background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog h4{margin:0 0 8px;font-size:17px}
+dialog p{margin:0 0 10px;font-size:14.5px}
+.toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:8px 14px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+#printSummary{display:none}
+footer{padding:0 16px 24px;color:var(--muted);font-size:12px}
+
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#fff;color:#000;font-size:10.5px}
+  :root{--ink:#000;--muted:#444;--line:#bbb;--card:#fff;--bg:#f2f2f2;--accent-soft:#eef3f9}
+  header.top,.toolbar,.mode,.inputs,.mobilebar,.info,details.how,footer,.noprint{display:none!important}
+  .layout{display:block;padding:0}
+  .results{position:static;max-height:none;overflow:visible}
+  .card{box-shadow:none;border:none;padding:0;margin:0}
+  .disclaimer{margin:0 0 8px;font-size:10px;padding:6px 8px}
+  #printSummary{display:block;margin-bottom:8px}
+  #printSummary h1{font-size:16px;margin:0 0 2px}
+  #printSummary table{font-size:10px}
+  #printSummary td{padding:1px 6px 1px 0}
+  .ps-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 16px}
+  .headline{padding:8px;margin-bottom:6px}.headline .big{font-size:20px}
+  .kpis{grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}
+  .kpi{padding:5px}.kpi .val{font-size:13px}
+  h3{margin:8px 0 4px;font-size:12px}
+  .bars .row{margin-bottom:2px;font-size:10px}
+  .bars .track{height:9px}
+  table.sens{font-size:10px}table.sens th,table.sens td{padding:2px}
+  .good,.warn,.bad,.bars .fill{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Development Appraisal Tool</h1>
+  <p>Residential schemes · UK · GBP · works offline in your browser</p>
+</header>
+
+<div class="disclaimer" role="note">
+  <strong>Learning and screening tool only.</strong> This is not a substitute for a professional development appraisal, RICS valuation, tax advice or financial advice. Check SDLT, finance terms and costs with qualified advisers before committing to any deal.
+</div>
+
+<div class="toolbar noprint">
+  <input type="text" id="apName" placeholder="Appraisal name, e.g. Station Road, 16 plots" aria-label="Appraisal name">
+  <button class="primary" id="btnSave">Save</button>
+  <select id="savedList" aria-label="Saved appraisals"><option value="">Load a saved appraisal…</option></select>
+  <button id="btnDelete" class="danger">Delete</button>
+  <button id="btnNew">New</button>
+  <button id="btnExport">Export JSON</button>
+  <button id="btnImport">Import JSON</button>
+  <input type="file" id="fileImport" accept="application/json,.json" hidden>
+  <button id="btnPrint">Print summary</button>
+</div>
+
+<div class="mode noprint" role="tablist" aria-label="Appraisal mode">
+  <button id="modeStd" role="tab">Profit mode<br><small>I know the land price</small></button>
+  <button id="modeRes" role="tab">Residual land value<br><small>What can I pay for the land?</small></button>
+</div>
+
+<div class="layout">
+  <main class="inputs" id="inputs"></main>
+  <aside class="results card" id="results" aria-live="polite"></aside>
+</div>
+
+<div class="mobilebar" id="mobilebar">
+  <div><div class="m1" id="mb1">Profit on GDV</div><div class="m2" id="mb2">–</div></div>
+  <button class="primary" id="mbGo">See results ↓</button>
+</div>
+
+<footer>Figures are saved in this browser only (localStorage). Export JSON to back up or move a deal to another device.</footer>
+
+<dialog id="infoDlg">
+  <h4 id="infoTitle"></h4>
+  <div id="infoBody"></div>
+  <form method="dialog" style="text-align:right;margin:0"><button class="primary">Got it</button></form>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   1. Learning layer: plain-English explanations
+   ============================================================ */
+const INFO = {
+  gdv:["Gross Development Value (GDV)","<p>The total amount you expect to sell all the finished homes for. It is the top line of every appraisal: everything else (land, build, fees, finance, profit) has to fit inside it.</p><p>Here GDV = market units × price + affordable units × discounted price.</p>"],
+  units:["Unit types","<p>List each house type once with how many you will build. Floor area is the Gross Internal Area (GIA) per home in square feet: it drives the build cost.</p><p>Use realistic sold prices for new-builds nearby (Rightmove sold data, local agents). New-build premiums fade fast.</p>"],
+  psf:["Price per square foot","<p>GDV divided by total floor area. It lets you compare your pricing with local comparables regardless of house size, and it is the first number a lender or valuer checks.</p>"],
+  affordable:["Affordable housing","<p>Planning often requires a share of homes to be affordable (e.g. shared ownership, affordable rent). They are usually sold to a Registered Provider (housing association) at a discount to open-market value (OMV), commonly 30-55%.</p><p>They still cost the same to build, so they reduce GDV without reducing costs, which pushes down what you can pay for the land.</p>"],
+  feesAff:["Sales fees on affordable units","<p>Affordable units are usually sold in one block to a housing association, so there is no estate agent or marketing spend on them. Tick this only if you expect to pay those fees on them too.</p>"],
+  landPrice:["Land purchase price","<p>What you pay the landowner for the site. In <b>Residual mode</b> this becomes the answer: the maximum price that still leaves you your target profit.</p>"],
+  sdlt:["Stamp Duty Land Tax (SDLT)","<p>Tax on buying land in England and Northern Ireland. Development land is normally charged at <b>non-residential</b> rates:</p><p>0% on the first £150,000 · 2% from £150,001 to £250,000 · 5% above £250,000.</p><p>Wales (LTT) and Scotland (LBTT) are different, so use the override there or if your advisor gives you a different figure.</p>"],
+  landAgent:["Land agent fees","<p>Fee to an agent who found or negotiated the site, as a % of the land price. Often 1-2%. Leave at 0 if you found it yourself.</p>"],
+  landLegal:["Land legal fees","<p>Solicitor's costs for buying the site (title checks, searches, contracts, option agreements), as a % of land price. Often 0.5-1%.</p>"],
+  buildPsf:["Build cost per sq ft","<p>The cost to build the houses themselves (substructure, superstructure, fit-out), applied to the total floor area. BCIS gives benchmark rates. Keep externals and fees separate, as below, so you do not double count.</p>"],
+  externals:["External works & infrastructure","<p>Everything outside the house footprint: roads, sewers, drainage, utilities connections, landscaping, driveways, fencing. Entered per plot. On greenfield sites this can be large, often £15k-£40k+ per plot.</p>"],
+  contingency:["Contingency","<p>A buffer for things that go wrong or were missed: ground conditions, price rises, design changes. It is a cost line in the appraisal, not profit. 5% is typical for standard housing; use more for refurbishment or tricky ground.</p><p>In this tool contingency = % × (build cost + external works).</p>"],
+  profFees:["Professional fees","<p>Architect, structural and civil engineers, QS, planning consultant, surveys, project manager. Usually 6-12% of build cost.</p><p>In this tool professional fees = % × (build cost + external works).</p>"],
+  s106:["Planning, Section 106 and CIL","<p><b>Section 106</b> is a legal agreement with the council for contributions (schools, roads, play areas). <b>CIL</b> (Community Infrastructure Levy) is a fixed tariff per m² some councils charge. Add planning application fees here too.</p><p>Assumed paid at the start of the build.</p>"],
+  warranty:["Building control & warranty","<p>Building control inspection fees plus a 10-year new-home warranty (NHBC, LABC, Premier etc.), which mortgage lenders require. Per plot.</p>"],
+  salesAgent:["Sales agent fees","<p>Estate agent commission on selling the homes, as a % of the value of homes they sell. Often 1-2% on new-build.</p>"],
+  marketing:["Marketing","<p>Show home, brochures, signage, CGIs, online listings. As a % of the value of homes being marketed. Often 0.5-1.5%.</p>"],
+  salesLegal:["Sales legal fees","<p>Your solicitor's cost for each sale completion. Per unit, all units.</p>"],
+  ltc:["Loan to cost (LTC)","<p>How much of the development costs the lender will fund, as a %. If costs are £3m and LTC is 65%, the loan is up to £1.95m and you put in the other £1.05m as equity.</p><p>In this tool <b>your equity goes in first</b>, then the loan is drawn. Lenders insist on this so their money is safest. Finance costs are on top and rolled up, paid when units sell.</p>"],
+  interest:["Interest rate","<p>The annual rate the lender charges on money you have drawn. This tool uses <b>simple interest</b> charged monthly on the outstanding balance (annual rate ÷ 12). Real lenders usually compound monthly, which adds a little more.</p>"],
+  arrangement:["Arrangement fee","<p>An up-front fee for setting up the loan, as a % of the loan. Typically 1-2%. Treated here as paid at the start, from your equity.</p>"],
+  exitFee:["Exit fee","<p>A fee some lenders charge when the loan is repaid, as a % of the loan. Often 0-1.5%. Some lenders charge it on GDV instead, so check your term sheet.</p>"],
+  programme:["Programme","<p><b>Acquire & get started:</b> months from buying the land to starting on site (discharging conditions, tendering).<br><b>Build:</b> months on site.<br><b>Sales:</b> months after practical completion to sell everything.</p><p>Every month of delay costs interest, which is why programme matters so much to profit.</p>"],
+  target:["Target profit","<p>The minimum profit that makes the risk worthwhile. Lenders typically want to see 15-20% on GDV for housing. You can set the target on GDV or on cost.</p>"],
+  profit:["Profit","<p>GDV minus every cost: land, build, fees, sales costs and finance. This is the developer's return for taking the risk.</p>"],
+  pogdv:["Profit on GDV","<p>Profit ÷ GDV. It shows how far sale prices could fall before you lose money. A 20% margin means prices can drop about 20% before you break even. It is the measure lenders and most housebuilders quote.</p>"],
+  poc:["Profit on cost","<p>Profit ÷ total costs. It shows the return on the money you spend. Because cost is smaller than GDV, profit on cost is always the higher number: 20% on GDV ≈ 25% on cost.</p><p>Conversion: PoC = PoGDV ÷ (1 − PoGDV).</p>"],
+  peakDebt:["Peak debt","<p>The highest the loan balance reaches, usually around the end of the build just before sales start repaying it. Lenders size their facility around this, and it is the point of maximum risk.</p>"],
+  financeCost:["Total finance cost","<p>Interest + arrangement fee + exit fee. Interest depends on <i>how long</i> money is borrowed, so a quicker build or faster sales cut it.</p>"],
+  equity:["Equity required","<p>Your own cash (or investors') that has to go in before the lender funds the rest. Equals total costs before finance, plus the arrangement fee, minus the loan.</p>"],
+  rlv:["Residual land value (RLV)","<p>Work the appraisal backwards: start with GDV, take off all the costs <i>and</i> your target profit, and what is left over (the residual) is the most you can pay for the land.</p><p>Because SDLT, agent and legal fees and interest all depend on the land price, there is no simple formula. The tool tries land prices repeatedly (binary search) until profit lands exactly on target.</p>"],
+  sens:["Sensitivity analysis","<p>Shows how fragile the deal is. Each cell is profit on GDV if sale prices (across) and build costs (down) move by the % shown. The centre cell is your base case.</p><p>Look for how quickly cells turn red. A deal that fails with a 5% price drop is risky.</p>"],
+  breakdown:["Cost breakdown","<p>Where the money goes. On typical housing, build is the largest slice, then land. If finance is a big slice, look at programme and LTC.</p>"]
+};
+
+/* ============================================================
+   2. State, defaults, storage
+   ============================================================ */
+const LS_CURRENT = "devAppraisal.current.v1";
+const LS_SAVED = "devAppraisal.saved.v1";
+
+function defaults(){
+  return {
+    name:"Example scheme: replace with your own figures",
+    mode:"standard",
+    units:[
+      {name:"2-bed terrace",count:4,sqft:750,price:245000},
+      {name:"3-bed semi",count:6,sqft:950,price:325000},
+      {name:"4-bed detached",count:4,sqft:1300,price:450000}
+    ],
+    affordable:[{name:"2-bed shared ownership",count:2,sqft:750,omv:245000,discount:30}],
+    feesOnAffordable:false,
+    landPrice:650000, sdltOverride:false, sdltManual:0, landAgentPct:1, landLegalPct:0.5,
+    buildPsf:150, externalsPerPlot:15000, contingencyPct:5,
+    profFeesPct:8, planningS106:120000, warrantyPerPlot:1500,
+    salesAgentPct:1.5, marketingPct:0.75, salesLegalPerUnit:1000,
+    ltcPct:65, interestPct:9, arrangementPct:1.5, exitPct:1,
+    acqMonths:3, buildMonths:14, salesMonths:9,
+    targetPct:20, targetBasis:"gdv"
+  };
+}
+function blank(){
+  const d = defaults();
+  return Object.assign(d,{name:"",units:[{name:"",count:0,sqft:0,price:0}],affordable:[],landPrice:0,planningS106:0});
+}
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+function loadJSON(k,fallback){ try{ const v=lsGet(k); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
+
+function sanitize(obj){
+  // Merge a loaded/imported object onto defaults so missing fields never break anything.
+  const d = defaults(), s = Object.assign({}, d);
+  if(!obj || typeof obj!=="object") return s;
+  for(const k of Object.keys(d)){
+    if(!(k in obj)) continue;
+    if(k==="units"||k==="affordable"){
+      s[k] = Array.isArray(obj[k]) ? obj[k].filter(r=>r&&typeof r==="object").map(r=>{
+        const row={name:String(r.name??"").slice(0,80)};
+        for(const f of (k==="units"?["count","sqft","price"]:["count","sqft","omv","discount"])) row[f]=num(r[f]);
+        return row;
+      }) : d[k];
+    } else if(typeof d[k]==="boolean") s[k]=!!obj[k];
+    else if(typeof d[k]==="number") s[k]=num(obj[k]);
+    else s[k]=String(obj[k]??"").slice(0,120);
+  }
+  if(!["standard","residual"].includes(s.mode)) s.mode="standard";
+  if(!["gdv","cost"].includes(s.targetBasis)) s.targetBasis="gdv";
+  return s;
+}
+
+let state = sanitize(loadJSON(LS_CURRENT,null) || defaults());
+function persist(){ lsSet(LS_CURRENT, JSON.stringify(state)); }
+
+/* ============================================================
+   3. Helpers
+   ============================================================ */
+function num(v){ const x = typeof v==="number" ? v : parseFloat(String(v??"").replace(/[£,\s%]/g,"")); return Number.isFinite(x) ? x : 0; }
+const pos = v => Math.max(0, num(v));
+const pct = v => Math.min(100, pos(v))/100;
+const div = (a,b) => (b && Number.isFinite(a/b)) ? a/b : 0;
+const gbp0 = new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0});
+function gbp(v){ v = Number.isFinite(v)?v:0; return gbp0.format(Math.round(v)===0?0:v); }
+function fp(v,d=1){ v=Number.isFinite(v)?v:0; return (v*100).toFixed(d)+"%"; }
+function n0(v){ v=Number.isFinite(v)?v:0; return Math.round(v).toLocaleString("en-GB"); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+const $ = id => document.getElementById(id);
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),1800); }
+
+/* ============================================================
+   4. The appraisal engine
+   ============================================================ */
+// SDLT, non-residential / mixed-use rates (England & NI)
+function sdltCalc(L){
+  if(!(L>0)) return 0;
+  return Math.max(0, Math.min(L,250000)-150000)*0.02 + Math.max(0, L-250000)*0.05;
+}
+
+/**
+ * Run the appraisal.
+ * opts.land   land price to use (defaults to the input)
+ * opts.pf     sale price factor for market units (sensitivity)
+ * opts.bf     build cost factor (sensitivity): build cost and externals
+ */
+function calc(s, opts={}){
+  const pf = opts.pf ?? 1, bf = opts.bf ?? 1;
+  const L = Math.max(0, opts.land ?? num(s.landPrice));
+  const r = {L};
+
+  // Revenue
+  let mU=0,mA=0,mG=0,aU=0,aA=0,aG=0;
+  for(const u of s.units){ const c=pos(u.count); mU+=c; mA+=c*pos(u.sqft); mG+=c*pos(u.price)*pf; }
+  for(const u of s.affordable){ const c=pos(u.count); aU+=c; aA+=c*pos(u.sqft); aG+=c*pos(u.omv)*(1-pct(u.discount)); }
+  Object.assign(r,{mU,mA,mG,aU,aA,aG});
+  r.units = mU+aU; r.area = mA+aA; r.gdv = mG+aG; r.psf = div(r.gdv,r.area);
+
+  // Land
+  r.sdltAuto = sdltCalc(L);
+  r.sdlt = s.sdltOverride ? pos(s.sdltManual) : r.sdltAuto;
+  r.landAgent = L*pct(s.landAgentPct);
+  r.landLegal = L*pct(s.landLegalPct);
+  r.landTotal = L + r.sdlt + r.landAgent + r.landLegal;
+
+  // Build
+  r.build = r.area*pos(s.buildPsf)*bf;
+  r.externals = r.units*pos(s.externalsPerPlot)*bf;
+  r.contingency = (r.build+r.externals)*pct(s.contingencyPct);
+  r.buildTotal = r.build + r.externals + r.contingency;
+
+  // Professional & statutory
+  r.profFees = (r.build+r.externals)*pct(s.profFeesPct);
+  r.s106 = pos(s.planningS106);
+  r.warranty = r.units*pos(s.warrantyPerPlot);
+  r.profTotal = r.profFees + r.s106 + r.warranty;
+
+  // Sales & marketing
+  r.feeBase = r.mG + (s.feesOnAffordable ? r.aG : 0);
+  r.salesAgent = r.feeBase*pct(s.salesAgentPct);
+  r.marketing = r.feeBase*pct(s.marketingPct);
+  r.salesLegal = r.units*pos(s.salesLegalPerUnit);
+  r.salesTotal = r.salesAgent + r.marketing + r.salesLegal;
+
+  // Finance: monthly cash flow, equity first, simple interest, repaid from sales
+  r.fundedCosts = r.landTotal + r.buildTotal + r.profTotal;
+  r.loan = r.fundedCosts*pct(s.ltcPct);
+  r.arrFee = r.loan*pct(s.arrangementPct);
+  r.equity = Math.max(0, r.fundedCosts + r.arrFee - r.loan);
+
+  const acq = Math.floor(pos(s.acqMonths)), B = Math.max(1,Math.floor(pos(s.buildMonths))), S = Math.floor(pos(s.salesMonths));
+  r.acq=acq; r.B=B; r.S=S;
+  const lastBuild = acq+B-1, N = acq+B+S;
+  const spend = new Array(N).fill(0), rec = new Array(N).fill(0), scost = new Array(N).fill(0);
+  spend[0] += r.landTotal + r.arrFee;
+  spend[acq] += r.s106;
+  const perBuildMonth = (r.buildTotal + r.profFees + r.warranty)/B;
+  for(let m=acq;m<=lastBuild;m++) spend[m] += perBuildMonth;
+  if(S>0){ for(let m=lastBuild+1;m<N;m++){ rec[m]+=r.gdv/S; scost[m]+=r.salesTotal/S; } }
+  else { rec[lastBuild]+=r.gdv; scost[lastBuild]+=r.salesTotal; }
+
+  const mr = pos(s.interestPct)/100/12;
+  let bal=0, eqLeft=r.equity, interest=0, peak=0, drawn=0;
+  const flows=[];
+  for(let m=0;m<N;m++){
+    const eq = Math.min(spend[m], eqLeft); eqLeft -= eq;
+    const draw = spend[m]-eq; bal += draw; drawn += draw;
+    peak = Math.max(peak, bal);
+    const int = bal*mr; interest += int;
+    const net = rec[m]-scost[m];
+    const repay = Math.min(bal, Math.max(0,net)); bal -= repay;
+    flows.push({m, phase: m<acq?"Acquire":(m<=lastBuild?"Build":"Sales"), spend:spend[m], eq, draw, int, rec:rec[m], scost:scost[m], repay, bal});
+  }
+  r.endBal = bal; // any shortfall is repaid by the developer at the end
+  r.flows = flows; r.interest = interest; r.peak = peak; r.drawn = drawn;
+  r.exitFee = drawn*pct(s.exitPct);
+  r.financeTotal = r.interest + r.arrFee + r.exitFee;
+
+  r.totalCost = r.landTotal + r.buildTotal + r.profTotal + r.salesTotal + r.financeTotal;
+  r.profit = r.gdv - r.totalCost;
+  r.pogdv = div(r.profit, r.gdv);
+  r.poc = div(r.profit, r.totalCost);
+  return r;
+}
+
+function targets(s){
+  const t = pos(s.targetPct)/100;
+  if(s.targetBasis==="cost") return {gdv: t/(1+t), cost: t, basis:"cost", t};
+  return {gdv: t, cost: t<1 ? t/(1-t) : 0, basis:"gdv", t};
+}
+function metric(r,basis){ return basis==="cost" ? r.poc : r.pogdv; }
+
+// Residual land value: binary search for the land price that hits target profit
+function solveResidual(s){
+  const T = targets(s);
+  const f = L => metric(calc(s,{land:L}),T.basis) - T.t;
+  const at0 = calc(s,{land:0});
+  if(at0.gdv<=0) return {land:0, ok:false, at0};
+  if(f(0) < 0) return {land:0, ok:false, at0};
+  let lo=0, hi=Math.max(at0.gdv,1), guard=0;
+  while(f(hi)>0 && guard++<30) hi*=2;
+  for(let i=0;i<80;i++){ const mid=(lo+hi)/2; if(f(mid)>=0) lo=mid; else hi=mid; if(hi-lo<0.5) break; }
+  return {land:Math.floor(lo), ok:true, at0};
+}
+
+function rag(value, target){
+  if(value >= target - 1e-9) return "good";
+  if(value >= target - 0.025) return "warn";
+  return "bad";
+}
+
+/* ============================================================
+   5. Input UI
+   ============================================================ */
+function info(key){ return INFO[key] ? `<button type="button" class="info" data-info="${key}" aria-label="Explain ${esc(INFO[key][0])}">i</button>` : ""; }
+function field(k, label, help, o={}){
+  const cls = ["inwrap", o.pre?"haspre":"", o.suf?"hassuf":""].join(" ");
+  return `<div class="field" ${o.wrapId?`id="${o.wrapId}"`:""}>
+    <label for="f_${k}">${esc(label)} ${info(o.info||k)}</label>
+    <div class="${cls}">${o.pre?`<span class="pre">${o.pre}</span>`:""}
+      <input id="f_${k}" data-k="${k}" type="number" inputmode="decimal" step="${o.step||"any"}" min="0" ${o.max?`max="${o.max}"`:""}>
+      ${o.suf?`<span class="suf">${o.suf}</span>`:""}</div>
+    ${help?`<div class="help">${help}</div>`:""}
+    ${o.after||""}
+  </div>`;
+}
+
+function buildInputs(){
+  $("inputs").innerHTML = `
+  <section class="card">
+    <h2>1. Scheme and revenue (GDV) ${info("gdv")}</h2>
+    <p class="sub">Add each house type you plan to build. Floor area is per unit (GIA, sq ft).</p>
+    <h3>Market (open sale) units ${info("units")}</h3>
+    <div class="tablewrap"><table class="units" id="tblUnits"></table></div>
+    <button type="button" class="link" id="addUnit">+ Add unit type</button>
+    <h3>Affordable units (optional) ${info("affordable")}</h3>
+    <div class="tablewrap"><table class="units" id="tblAff"></table></div>
+    <button type="button" class="link" id="addAff">+ Add affordable unit type</button>
+    <div class="totals" id="revTotals"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Land</h2>
+    <p class="sub">The site and the costs of buying it.</p>
+    <div class="grid">
+      ${field("landPrice","Land purchase price","What you pay the landowner. In residual mode this is calculated for you.",{pre:"£",step:1000,wrapId:"landWrap"})}
+      <div class="field">
+        <label>Stamp duty (SDLT) ${info("sdlt")}</label>
+        <div class="calcnote" id="sdltNote"></div>
+        <label class="check"><input type="checkbox" id="f_sdltOverride"> Override with my own figure</label>
+        <div class="inwrap haspre" id="sdltManualWrap"><span class="pre">£</span><input id="f_sdltManual" data-k="sdltManual" type="number" inputmode="decimal" min="0" step="100"></div>
+      </div>
+      ${field("landAgentPct","Agent fees","% of land price paid to a land agent.",{suf:"% land",step:0.1,max:100,info:"landAgent"})}
+      ${field("landLegalPct","Legal fees","% of land price for conveyancing and legal work.",{suf:"% land",step:0.1,max:100,info:"landLegal"})}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. Build costs</h2>
+    <p class="sub">The cost of building the homes and the site around them.</p>
+    <div class="grid">
+      ${field("buildPsf","Build cost per sq ft","Applied to the total floor area of all units.",{pre:"£",suf:"/ sq ft",step:1})}
+      ${field("externalsPerPlot","External works & infrastructure","Roads, drainage, services, landscaping: per plot.",{pre:"£",suf:"/ plot",step:500,info:"externals"})}
+      ${field("contingencyPct","Contingency","Buffer for the unexpected, % of build + externals. Default 5%.",{suf:"%",step:0.5,max:100,info:"contingency"})}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4. Professional and statutory costs</h2>
+    <p class="sub">Consultants, planning obligations and warranties.</p>
+    <div class="grid">
+      ${field("profFeesPct","Professional fees","Architect, engineers, QS etc. % of build + externals. Default 8%.",{suf:"%",step:0.5,max:100,info:"profFees"})}
+      ${field("planningS106","Planning, S106 & CIL","Total for the whole scheme.",{pre:"£",step:1000,info:"s106"})}
+      ${field("warrantyPerPlot","Building control & warranty","E.g. NHBC, per plot.",{pre:"£",suf:"/ plot",step:100,info:"warranty"})}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>5. Sales and marketing</h2>
+    <p class="sub">Costs of selling the finished homes.</p>
+    <div class="grid">
+      ${field("salesAgentPct","Sales agent fees","% of GDV of the homes sold through agents.",{suf:"% GDV",step:0.1,max:100,info:"salesAgent"})}
+      ${field("marketingPct","Marketing","% of GDV: show home, signage, listings.",{suf:"% GDV",step:0.1,max:100,info:"marketing"})}
+      ${field("salesLegalPerUnit","Sales legal fees","Per unit sold (all units).",{pre:"£",suf:"/ unit",step:50,info:"salesLegal"})}
+    </div>
+    <label class="check"><input type="checkbox" id="f_feesOnAffordable"> Also charge agent & marketing fees on affordable units ${info("feesAff")}</label>
+  </section>
+
+  <section class="card">
+    <h2>6. Finance</h2>
+    <p class="sub">Development loan terms and how long the money is out.</p>
+    <div class="grid">
+      ${field("ltcPct","Loan to cost (LTC)","% of costs (land, build, fees) the lender funds. Your equity goes in first.",{suf:"%",step:1,max:100,info:"ltc"})}
+      ${field("interestPct","Interest rate","Annual rate, charged monthly as simple interest.",{suf:"% p.a.",step:0.25,max:100,info:"interest"})}
+      ${field("arrangementPct","Arrangement fee","% of the loan, paid at the start.",{suf:"% loan",step:0.1,max:100,info:"arrangement"})}
+      ${field("exitPct","Exit fee","% of the loan, paid on repayment.",{suf:"% loan",step:0.1,max:100,info:"exitFee"})}
+      ${field("acqMonths","Months to acquire & start","From buying the land to starting on site.",{suf:"months",step:1,info:"programme"})}
+      ${field("buildMonths","Build duration","Months on site (minimum 1).",{suf:"months",step:1,info:"programme"})}
+      ${field("salesMonths","Sales period","Months to sell all units after completion. 0 = all sold at completion.",{suf:"months",step:1,info:"programme"})}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>7. Profit target ${info("target")}</h2>
+    <p class="sub">The minimum return you need for the deal to be worth the risk.</p>
+    <div class="grid">
+      ${field("targetPct","Target profit","Default 20% on GDV.",{suf:"%",step:0.5,max:99,info:"target"})}
+      <div class="field">
+        <label for="f_targetBasis">Measured on ${info("poc")}</label>
+        <select id="f_targetBasis"><option value="gdv">GDV (most common)</option><option value="cost">Cost</option></select>
+        <div class="help" id="targetEquiv"></div>
+      </div>
+    </div>
+  </section>`;
+
+  // populate values
+  document.querySelectorAll("#inputs input[data-k]").forEach(el=>{ el.value = state[el.dataset.k]; });
+  $("f_sdltOverride").checked = state.sdltOverride;
+  $("f_feesOnAffordable").checked = state.feesOnAffordable;
+  $("f_targetBasis").value = state.targetBasis;
+  renderUnitTables();
+}
+
+function renderUnitTables(){
+  const mk = (list, kind) => {
+    const cols = kind==="units"
+      ? [["name","Unit type","text"],["count","No.","n"],["sqft","Sq ft / unit","n"],["price","Price / unit £","n"]]
+      : [["name","Unit type","text"],["count","No.","n"],["sqft","Sq ft / unit","n"],["omv","Open-market £","n"],["discount","Discount %","n"]];
+    let h = "<thead><tr>"+cols.map(c=>`<th>${c[1]}</th>`).join("")+`<th>${kind==="units"?"Row GDV":"Price / unit"}</th><th></th></tr></thead><tbody>`;
+    list.forEach((u,i)=>{
+      h += "<tr>"+cols.map(c=>`<td class="${c[0]==="name"?"nm":""}"><input data-kind="${kind}" data-i="${i}" data-f="${c[0]}" ${c[2]==="text"?'type="text"':'type="number" inputmode="decimal" min="0" step="any"'} value="${esc(u[c[0]])}" aria-label="${c[1]}"></td>`).join("")
+        + `<td class="out" id="out_${kind}_${i}"></td><td class="x"><button type="button" data-del="${kind}" data-i="${i}" aria-label="Remove row">✕</button></td></tr>`;
+    });
+    if(!list.length) h += `<tr><td colspan="${cols.length+2}" class="out">None. ${kind==="affordable"?"Add a row if planning requires affordable homes.":"Add a unit type."}</td></tr>`;
+    return h+"</tbody>";
+  };
+  $("tblUnits").innerHTML = mk(state.units,"units");
+  $("tblAff").innerHTML = mk(state.affordable,"affordable");
+}
+
+function bindInputs(){
+  const inp = $("inputs");
+  inp.addEventListener("input", e=>{
+    const el = e.target;
+    if(el.dataset.k){ state[el.dataset.k] = num(el.value); }
+    else if(el.dataset.kind){ const row = state[el.dataset.kind][+el.dataset.i]; if(!row) return; row[el.dataset.f] = el.dataset.f==="name" ? el.value.slice(0,80) : num(el.value); }
+    else if(el.id==="f_sdltOverride") state.sdltOverride = el.checked;
+    else if(el.id==="f_feesOnAffordable") state.feesOnAffordable = el.checked;
+    else if(el.id==="f_targetBasis") state.targetBasis = el.value;
+    else return;
+    persist(); update();
+  });
+  inp.addEventListener("change", e=>{ // checkbox/select in browsers that skip 'input'
+    const el=e.target;
+    if(el.id==="f_sdltOverride"){ state.sdltOverride=el.checked; }
+    else if(el.id==="f_feesOnAffordable"){ state.feesOnAffordable=el.checked; }
+    else if(el.id==="f_targetBasis"){ state.targetBasis=el.value; }
+    else return;
+    persist(); update();
+  });
+  inp.addEventListener("click", e=>{
+    const t = e.target.closest("button"); if(!t) return;
+    if(t.id==="addUnit"){ state.units.push({name:"",count:1,sqft:0,price:0}); renderUnitTables(); persist(); update(); }
+    else if(t.id==="addAff"){ state.affordable.push({name:"",count:1,sqft:0,omv:0,discount:30}); renderUnitTables(); persist(); update(); }
+    else if(t.dataset.del){ state[t.dataset.del].splice(+t.dataset.i,1); renderUnitTables(); persist(); update(); }
+  });
+}
+
+/* ============================================================
+   6. Results UI
+   ============================================================ */
+function update(){
+  const s = state, T = targets(s);
+  const residual = s.mode==="residual";
+  const solve = residual ? solveResidual(s) : null;
+  const land = residual ? solve.land : num(s.landPrice);
+  const r = calc(s,{land});
+  const cG = rag(r.pogdv, T.gdv), cC = rag(r.poc, T.cost);
+  const mainCls = T.basis==="cost" ? cC : cG;
+
+  // inputs that reflect calculations
+  const lp = $("f_landPrice");
+  lp.disabled = residual;
+  if(residual) lp.value = Math.round(land);
+  $("landWrap").querySelector(".help").textContent = residual
+    ? "Calculated: the maximum you could pay and still hit your target profit."
+    : "What you pay the landowner. Switch to residual mode to solve for this.";
+  $("sdltNote").innerHTML = `Calculated at non-residential rates: <b>${gbp(r.sdltAuto)}</b> on ${gbp(land)}` + (s.sdltOverride?` · <b>using your override</b>`:"");
+  $("sdltManualWrap").style.display = s.sdltOverride ? "" : "none";
+  $("targetEquiv").textContent = T.basis==="gdv"
+    ? `${fp(T.gdv)} on GDV ≈ ${fp(T.cost)} on cost.` : `${fp(T.cost)} on cost ≈ ${fp(T.gdv)} on GDV.`;
+  $("revTotals").innerHTML = `<span>Units: <b>${n0(r.units)}</b></span><span>Total area: <b>${n0(r.area)} sq ft</b></span><span>Total GDV: <b>${gbp(r.gdv)}</b> ${info("gdv")}</span><span>Average: <b>${gbp(r.psf)}/sq ft</b> ${info("psf")}</span>`;
+  state.units.forEach((u,i)=>{ const o=$("out_units_"+i); if(o) o.textContent = gbp(pos(u.count)*pos(u.price)); });
+  state.affordable.forEach((u,i)=>{ const o=$("out_affordable_"+i); if(o) o.textContent = gbp(pos(u.omv)*(1-pct(u.discount))); });
+  $("modeStd").classList.toggle("on",!residual); $("modeRes").classList.toggle("on",residual);
+  $("modeStd").setAttribute("aria-selected",!residual); $("modeRes").setAttribute("aria-selected",residual);
+
+  // Headline + verdict
+  const tLabel = T.basis==="cost" ? `${fp(T.cost)} on cost` : `${fp(T.gdv)} on GDV`;
+  let headline, verdict, vcls;
+  if(residual){
+    if(solve.ok){
+      headline = `<div class="lbl">Residual land value ${info("rlv")}</div><div class="big">${gbp(land)}</div>
+        <div class="small">Maximum land price to hit ${tLabel} · ${gbp(div(land,r.units))} per plot</div>`;
+      verdict = `You could pay up to ${gbp(land)} for the land (plus ${gbp(r.sdlt+r.landAgent+r.landLegal)} SDLT and fees) and still make ${tLabel}.`;
+      vcls = "good";
+    } else {
+      const a0 = solve.at0;
+      headline = `<div class="lbl">Residual land value ${info("rlv")}</div><div class="big">£0</div>
+        <div class="small">No positive land value at ${tLabel}</div>`;
+      verdict = r.gdv<=0 ? "Enter some units and sale prices to calculate a residual land value."
+        : `Not viable even with free land: profit at £0 land is ${fp(metric(a0,T.basis))} against a ${tLabel} target. Costs or prices need to change.`;
+      vcls = "bad";
+    }
+  } else {
+    headline = `<div class="lbl">Profit ${info("profit")}</div><div class="big">${gbp(r.profit)}</div>
+      <div class="small">${fp(r.pogdv)} on GDV · ${fp(r.poc)} on cost</div>`;
+    const m = metric(r,T.basis), mt = T.basis==="cost"?"cost":"GDV";
+    if(r.gdv<=0){ verdict="Enter some units and sale prices to start the appraisal."; vcls="warn"; }
+    else if(mainCls==="good"){ verdict=`Viable: ${fp(m)} profit on ${mt} meets your ${tLabel} target.`; vcls="good"; }
+    else if(mainCls==="warn"){ verdict=`Marginal: ${fp(m)} on ${mt} is just under your ${tLabel} target. Try to renegotiate the land or tighten costs.`; vcls="warn"; }
+    else { verdict = r.profit<0 ? `Loss-making: this scheme loses ${gbp(-r.profit)} at this land price.` : `Not viable at this land price: ${fp(m)} on ${mt} is well below your ${tLabel} target.`; vcls="bad"; }
+  }
+
+  // Cost breakdown
+  const cats = [
+    ["Land & acquisition", r.landTotal, "#1f5fa8"],
+    ["Build", r.buildTotal, "#d0782a"],
+    ["Professional & statutory", r.profTotal, "#7b5cc4"],
+    ["Sales & marketing", r.salesTotal, "#2a9d8f"],
+    ["Finance", r.financeTotal, "#c2414b"]
+  ];
+  const maxC = Math.max(...cats.map(c=>c[1]),1);
+  const bars = cats.map(c=>`<div class="row"><span>${c[0]}</span><div class="track"><div class="fill" style="width:${(c[1]/maxC*100).toFixed(1)}%;background:${c[2]}"></div></div><span class="amt">${gbp(c[1])} · ${fp(div(c[1],r.totalCost),0)}</span></div>`).join("");
+
+  // Sensitivity: profit on GDV, land held at current/residual value
+  const steps = [-0.10,-0.05,0,0.05,0.10];
+  let sens = `<table class="sens"><thead><tr><th>Build ↓ / Price →</th>${steps.map(p=>`<th>${p>0?"+":""}${p*100}%</th>`).join("")}</tr></thead><tbody>`;
+  for(const b of steps){
+    sens += `<tr><th>${b>0?"+":""}${b*100}%</th>`;
+    for(const p of steps){
+      const x = calc(s,{land, pf:1+p, bf:1+b});
+      sens += `<td class="${rag(x.pogdv,T.gdv)}${(p===0&&b===0)?" base":""}">${fp(x.pogdv)}</td>`;
+    }
+    sens += "</tr>";
+  }
+  sens += "</tbody></table>";
+
+  $("results").innerHTML = `
+    <div id="printSummary"></div>
+    <div class="headline">${headline}</div>
+    <div class="verdict ${vcls}">${verdict}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Total GDV ${info("gdv")}</div><div class="val">${gbp(r.gdv)}</div><div class="note">${gbp(r.psf)}/sq ft</div></div>
+      <div class="kpi"><div class="lbl">Total costs ${info("breakdown")}</div><div class="val">${gbp(r.totalCost)}</div><div class="note">incl. finance</div></div>
+      <div class="kpi ${cG}"><div class="lbl">Profit on GDV ${info("pogdv")}</div><div class="val">${fp(r.pogdv)}</div><div class="note">target ${fp(T.gdv)}</div></div>
+      <div class="kpi ${cC}"><div class="lbl">Profit on cost ${info("poc")}</div><div class="val">${fp(r.poc)}</div><div class="note">target ${fp(T.cost)}</div></div>
+      <div class="kpi"><div class="lbl">Profit ${info("profit")}</div><div class="val">${gbp(r.profit)}</div><div class="note">${gbp(div(r.profit,r.units))} per unit</div></div>
+      <div class="kpi"><div class="lbl">Peak debt ${info("peakDebt")}</div><div class="val">${gbp(r.peak)}</div><div class="note">loan ${fp(pct(s.ltcPct),0)} of costs</div></div>
+      <div class="kpi"><div class="lbl">Finance cost ${info("financeCost")}</div><div class="val">${gbp(r.financeTotal)}</div><div class="note">interest ${gbp(r.interest)}</div></div>
+      <div class="kpi"><div class="lbl">Equity required ${info("equity")}</div><div class="val">${gbp(r.equity)}</div><div class="note">your cash in first</div></div>
+    </div>
+    <h3>Cost breakdown ${info("breakdown")}</h3>
+    <div class="bars">${bars}</div>
+    <h3>Sensitivity: profit on GDV ${info("sens")}</h3>
+    <div class="tablewrap">${sens}</div>
+    <div class="sensnote">Sale price changes apply to market units (affordable prices are usually fixed with the housing association). Build changes apply to build cost and externals, with contingency and fees following. Land held at ${gbp(land)}. Green ≥ target, amber within 2.5 points, red below.</div>
+    ${howCalculated(s,r,T,residual)}
+  `;
+
+  // Mobile bar
+  $("mb1").textContent = residual ? "Residual land value" : (T.basis==="cost"?"Profit on cost":"Profit on GDV");
+  $("mb2").innerHTML = residual ? gbp(land) : `<span class="pill ${mainCls}">${fp(metric(r,T.basis))}</span>`;
+
+  printSummary(s,r,T,residual,land);
+}
+
+function howCalculated(s,r,T,residual){
+  const st = (t,eq,res)=>`<li><b>${t}</b><br><span class="eq">${eq}</span> = <b>${res}</b></li>`;
+  const cf = r.flows.map(f=>`<tr><td>${f.m+1}</td><td>${f.phase}</td><td>${n0(f.spend)}</td><td>${n0(f.eq)}</td><td>${n0(f.draw)}</td><td>${n0(f.int)}</td><td>${n0(f.rec-f.scost)}</td><td>${n0(f.repay)}</td><td>${n0(f.bal)}</td></tr>`).join("");
+  return `<details class="how"><summary>How this was calculated</summary>
+  <ol>
+    ${st("GDV (market)", `${n0(r.mU)} units, Σ count × price`, gbp(r.mG))}
+    ${r.aU?st("GDV (affordable)", `${n0(r.aU)} units, Σ count × open-market × (1 − discount)`, gbp(r.aG)):""}
+    ${st("Total GDV and £/sq ft", `${gbp(r.gdv)} ÷ ${n0(r.area)} sq ft`, gbp(r.psf)+"/sq ft")}
+    ${residual?`<li><b>Residual mode:</b> the tool tried land prices by binary search (halving the gap each time) until profit hit ${T.basis==="cost"?fp(T.cost)+" on cost":fp(T.gdv)+" on GDV"}. Land price found: <b>${gbp(r.L)}</b>.</li>`:""}
+    ${st("SDLT"+(s.sdltOverride?" (your override)":""), s.sdltOverride?"manual figure":`2% × (min(${gbp(r.L)}, £250k) − £150k) + 5% × (${gbp(r.L)} − £250k)`, gbp(r.sdlt))}
+    ${st("Land & acquisition", `${gbp(r.L)} land + ${gbp(r.sdlt)} SDLT + ${gbp(r.landAgent)} agent + ${gbp(r.landLegal)} legal`, gbp(r.landTotal))}
+    ${st("Build cost", `${n0(r.area)} sq ft × ${gbp(pos(s.buildPsf))}`, gbp(r.build))}
+    ${st("External works", `${n0(r.units)} plots × ${gbp(pos(s.externalsPerPlot))}`, gbp(r.externals))}
+    ${st("Contingency", `${fp(pct(s.contingencyPct))} × (${gbp(r.build)} + ${gbp(r.externals)})`, gbp(r.contingency))}
+    ${st("Professional fees", `${fp(pct(s.profFeesPct))} × (${gbp(r.build)} + ${gbp(r.externals)})`, gbp(r.profFees))}
+    ${st("Professional & statutory total", `${gbp(r.profFees)} fees + ${gbp(r.s106)} S106/CIL + ${gbp(r.warranty)} warranty`, gbp(r.profTotal))}
+    ${st("Sales & marketing", `(${fp(pct(s.salesAgentPct),2)} + ${fp(pct(s.marketingPct),2)}) × ${gbp(r.feeBase)} + ${n0(r.units)} × ${gbp(pos(s.salesLegalPerUnit))} legal`, gbp(r.salesTotal))}
+    ${st("Loan and equity", `loan = ${fp(pct(s.ltcPct),0)} × ${gbp(r.fundedCosts)} costs; equity = costs + ${gbp(r.arrFee)} arrangement fee − loan`, `loan ${gbp(r.loan)}, equity ${gbp(r.equity)}`)}
+    <li><b>Cash flow (${r.acq} + ${r.B} + ${r.S} months)</b><br>Land, SDLT, fees and the arrangement fee are paid in month 1. S106/CIL is paid at start of build. Build, externals, contingency, professional fees and warranty are spread evenly over the ${r.B} build months. Your equity pays costs first; once it runs out the loan is drawn. Each month interest = balance × ${fp(pos(s.interestPct)/100,2)} ÷ 12 (simple, not compounded). Sales receive GDV evenly over ${r.S||"the final build"} month${r.S===1?"":"s"}; net receipts repay the loan.</li>
+    ${st("Finance cost", `${gbp(r.interest)} interest + ${gbp(r.arrFee)} arrangement + ${fp(pct(s.exitPct),2)} × ${gbp(r.drawn)} exit`, gbp(r.financeTotal))}
+    ${st("Total costs", `${gbp(r.landTotal)} + ${gbp(r.buildTotal)} + ${gbp(r.profTotal)} + ${gbp(r.salesTotal)} + ${gbp(r.financeTotal)}`, gbp(r.totalCost))}
+    ${st("Profit", `${gbp(r.gdv)} GDV − ${gbp(r.totalCost)} costs`, gbp(r.profit))}
+    ${st("Profit on GDV / on cost", `${gbp(r.profit)} ÷ ${gbp(r.gdv)} ; ${gbp(r.profit)} ÷ ${gbp(r.totalCost)}`, `${fp(r.pogdv)} / ${fp(r.poc)}`)}
+  </ol>
+  <h3>Monthly cash flow (£)</h3>
+  <div class="tablewrap"><table class="cf"><thead><tr><th>Mth</th><th>Phase</th><th>Spend</th><th>Equity</th><th>Loan draw</th><th>Interest</th><th>Net sales</th><th>Repay</th><th>Loan bal.</th></tr></thead><tbody>${cf}</tbody></table></div>
+  <p class="sensnote">Peak debt is the highest loan balance (excluding rolled-up interest). Interest accrues and is paid off from sales.</p>
+  </details>`;
+}
+
+function printSummary(s,r,T,residual,land){
+  const rows = (pairs)=>"<table>"+pairs.map(p=>`<tr><td>${p[0]}</td><td><b>${p[1]}</b></td></tr>`).join("")+"</table>";
+  const unitsTxt = s.units.filter(u=>pos(u.count)).map(u=>`${n0(u.count)} × ${esc(u.name||"Unit")} (${n0(u.sqft)} sq ft @ ${gbp(pos(u.price))})`).join("; ") || "none";
+  const affTxt = s.affordable.filter(u=>pos(u.count)).map(u=>`${n0(u.count)} × ${esc(u.name||"Affordable")} (${n0(u.sqft)} sq ft, ${gbp(pos(u.omv))} less ${pos(u.discount)}%)`).join("; ");
+  $("printSummary").innerHTML = `
+    <h1>${esc(s.name||"Development appraisal")}</h1>
+    <div style="font-size:10px;color:#444;margin-bottom:4px">${residual?"Residual land value mode":"Profit mode"} · printed ${new Date().toLocaleDateString("en-GB")}</div>
+    <div style="font-size:10px;margin-bottom:4px"><b>Units:</b> ${unitsTxt}${affTxt?`<br><b>Affordable:</b> ${affTxt}`:""}</div>
+    <div class="ps-grid">
+      ${rows([["Land price",gbp(land)],["SDLT",gbp(r.sdlt)],["Land agent / legal",`${pos(s.landAgentPct)}% / ${pos(s.landLegalPct)}%`],["Build",`${gbp(pos(s.buildPsf))}/sq ft`],["Externals",`${gbp(pos(s.externalsPerPlot))}/plot`]])}
+      ${rows([["Contingency",`${pos(s.contingencyPct)}%`],["Prof fees",`${pos(s.profFeesPct)}%`],["S106 / CIL",gbp(r.s106)],["Warranty",`${gbp(pos(s.warrantyPerPlot))}/plot`],["Sales agent / marketing",`${pos(s.salesAgentPct)}% / ${pos(s.marketingPct)}%`]])}
+      ${rows([["LTC / interest",`${pos(s.ltcPct)}% / ${pos(s.interestPct)}%`],["Arrangement / exit",`${pos(s.arrangementPct)}% / ${pos(s.exitPct)}%`],["Programme",`${r.acq} + ${r.B} + ${r.S} months`],["Target",T.basis==="cost"?`${fp(T.cost)} on cost`:`${fp(T.gdv)} on GDV`],["Total area",`${n0(r.area)} sq ft`]])}
+    </div>`;
+}
+
+/* ============================================================
+   7. Info dialog, mode, save/load, export, print
+   ============================================================ */
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".info"); if(!b) return;
+  e.preventDefault();
+  const it = INFO[b.dataset.info]; if(!it) return;
+  $("infoTitle").textContent = it[0]; $("infoBody").innerHTML = it[1];
+  const d=$("infoDlg"); if(d.showModal) d.showModal(); else alert(it[0]);
+});
+
+function setMode(m){ state.mode=m; persist(); update(); }
+$("modeStd").onclick = ()=>setMode("standard");
+$("modeRes").onclick = ()=>{
+  setMode("residual");
+};
+$("mbGo").onclick = ()=>$("results").scrollIntoView({behavior:"smooth"});
+
+function savedAll(){ const o=loadJSON(LS_SAVED,{}); return (o&&typeof o==="object")?o:{}; }
+function refreshSaved(){
+  const all = savedAll(), sel=$("savedList");
+  sel.innerHTML = `<option value="">Load a saved appraisal… (${Object.keys(all).length})</option>` +
+    Object.keys(all).sort((a,b)=>a.localeCompare(b)).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join("");
+}
+function loadState(s){ state = sanitize(s); persist(); $("apName").value = state.name; buildInputs(); update(); }
+
+$("apName").addEventListener("input", e=>{ state.name = e.target.value.slice(0,120); persist(); update(); });
+$("btnSave").onclick = ()=>{
+  const name = (state.name||"").trim();
+  if(!name){ toast("Give the appraisal a name first"); $("apName").focus(); return; }
+  const all = savedAll();
+  if(all[name] && !confirm(`Overwrite saved appraisal "${name}"?`)) return;
+  all[name] = JSON.parse(JSON.stringify(state));
+  toast(lsSet(LS_SAVED, JSON.stringify(all)) ? `Saved "${name}"` : "Could not save: browser storage unavailable");
+  refreshSaved(); $("savedList").value = name;
+};
+$("savedList").onchange = e=>{ const k=e.target.value; if(!k) return; const all=savedAll(); if(all[k]){ loadState(all[k]); toast(`Loaded "${k}"`); } };
+$("btnDelete").onclick = ()=>{
+  const k = $("savedList").value || (state.name||"").trim();
+  const all = savedAll();
+  if(!k || !all[k]){ toast("Choose a saved appraisal to delete"); return; }
+  if(!confirm(`Delete saved appraisal "${k}"? This cannot be undone.`)) return;
+  delete all[k]; lsSet(LS_SAVED, JSON.stringify(all)); refreshSaved(); toast(`Deleted "${k}"`);
+};
+$("btnNew").onclick = ()=>{
+  const choice = confirm("Start a new appraisal?\n\nOK = blank appraisal with default assumptions\nCancel = keep current\n\n(Save first if you want to keep the current one.)");
+  if(choice){ loadState(blank()); $("savedList").value=""; }
+};
+$("btnExport").onclick = ()=>{
+  const blob = new Blob([JSON.stringify({app:"dev-appraisal",version:1,exported:new Date().toISOString(),appraisal:state},null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = ((state.name||"appraisal").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-")||"appraisal")+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$("btnImport").onclick = ()=>$("fileImport").click();
+$("fileImport").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{ const o = JSON.parse(rd.result); loadState(o.appraisal || o); toast("Imported"); }
+    catch(err){ toast("That file is not a valid appraisal JSON"); }
+    e.target.value="";
+  };
+  rd.readAsText(f);
+};
+$("btnPrint").onclick = ()=>window.print();
+
+/* ============================================================
+   8. Boot
+   ============================================================ */
+$("apName").value = state.name;
+buildInputs();
+bindInputs();
+refreshSaved();
+update();
+</script>
+</body>
+</html>
