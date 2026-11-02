@@ -18,7 +18,15 @@
     --accent:#6aa6ec; --accent-soft:#1d2b3b;
     --good:#5fcf8c; --good-bg:#16301f; --warn:#f0b54a; --warn-bg:#3a2d10; --bad:#ff8a80; --bad-bg:#3b1a18;
     --shadow:none;
+    color-scheme:dark;
   }
+}
+:root[data-theme="dark"]{
+    --bg:#11161c; --card:#1a2129; --ink:#e6ebf0; --muted:#9aa7b4; --line:#2c3642;
+    --accent:#6aa6ec; --accent-soft:#1d2b3b;
+    --good:#5fcf8c; --good-bg:#16301f; --warn:#f0b54a; --warn-bg:#3a2d10; --bad:#ff8a80; --bad-bg:#3b1a18;
+    --shadow:none;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -111,7 +119,9 @@ details.how summary{cursor:pointer;font-weight:600;padding:10px 0}
 table.cf{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 table.cf th,table.cf td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:right}
 table.cf th:first-child,table.cf td:first-child,table.cf th:nth-child(2),table.cf td:nth-child(2){text-align:left}
-.mobilebar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:5;box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+.mobilebar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:5;box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+textarea{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;width:100%;height:220px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+.dlgbtns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px}
 .mobilebar .m1{font-size:12px;color:var(--muted)}
 .mobilebar .m2{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
 .pill{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;border:1px solid}
@@ -169,7 +179,7 @@ footer{padding:0 16px 24px;color:var(--muted);font-size:12px}
   <button id="btnExport">Export JSON</button>
   <button id="btnImport">Import JSON</button>
   <input type="file" id="fileImport" accept="application/json,.json" hidden>
-  <button id="btnPrint">Print summary</button>
+  <button id="btnPrint" class="artifact-hide">Print summary</button>
 </div>
 
 <div class="mode noprint" role="tablist" aria-label="Appraisal mode">
@@ -193,6 +203,17 @@ footer{padding:0 16px 24px;color:var(--muted);font-size:12px}
   <h4 id="infoTitle"></h4>
   <div id="infoBody"></div>
   <form method="dialog" style="text-align:right;margin:0"><button class="primary">Got it</button></form>
+</dialog>
+<dialog id="askDlg">
+  <h4 id="askTitle"></h4>
+  <p id="askBody"></p>
+  <div class="dlgbtns"><button type="button" id="askNo">Cancel</button><button type="button" class="primary" id="askYes">OK</button></div>
+</dialog>
+<dialog id="expDlg">
+  <h4>Export appraisal</h4>
+  <p>Copy this JSON and keep it somewhere safe (notes, email to yourself). Use Import JSON to load it back on any device.</p>
+  <textarea id="expText" readonly aria-label="Appraisal JSON"></textarea>
+  <div class="dlgbtns"><button type="button" id="expDownload" class="artifact-hide">Download .json</button><button type="button" id="expCopy">Copy</button><button type="button" class="primary" id="expClose">Close</button></div>
 </dialog>
 <div class="toast" id="toast"></div>
 
@@ -752,6 +773,15 @@ document.addEventListener("click", e=>{
   const d=$("infoDlg"); if(d.showModal) d.showModal(); else alert(it[0]);
 });
 
+// In-page confirmation (native confirm() is blocked in some embedded viewers)
+function ask(title, body, okLabel){
+  return new Promise(res=>{
+    const d=$("askDlg"); $("askTitle").textContent=title; $("askBody").textContent=body; $("askYes").textContent=okLabel||"OK";
+    const done=v=>{ $("askYes").onclick=$("askNo").onclick=d.oncancel=null; d.close(); res(v); };
+    $("askYes").onclick=()=>done(true); $("askNo").onclick=()=>done(false); d.oncancel=e=>{e.preventDefault(); done(false);};
+    d.showModal();
+  });
+}
 function setMode(m){ state.mode=m; persist(); update(); }
 $("modeStd").onclick = ()=>setMode("standard");
 $("modeRes").onclick = ()=>{
@@ -768,29 +798,37 @@ function refreshSaved(){
 function loadState(s){ state = sanitize(s); persist(); $("apName").value = state.name; buildInputs(); update(); }
 
 $("apName").addEventListener("input", e=>{ state.name = e.target.value.slice(0,120); persist(); update(); });
-$("btnSave").onclick = ()=>{
+$("btnSave").onclick = async ()=>{
   const name = (state.name||"").trim();
   if(!name){ toast("Give the appraisal a name first"); $("apName").focus(); return; }
   const all = savedAll();
-  if(all[name] && !confirm(`Overwrite saved appraisal "${name}"?`)) return;
+  if(all[name] && !(await ask("Overwrite?",`A saved appraisal called "${name}" already exists. Replace it with the current figures?`,"Overwrite"))) return;
   all[name] = JSON.parse(JSON.stringify(state));
   toast(lsSet(LS_SAVED, JSON.stringify(all)) ? `Saved "${name}"` : "Could not save: browser storage unavailable");
   refreshSaved(); $("savedList").value = name;
 };
 $("savedList").onchange = e=>{ const k=e.target.value; if(!k) return; const all=savedAll(); if(all[k]){ loadState(all[k]); toast(`Loaded "${k}"`); } };
-$("btnDelete").onclick = ()=>{
+$("btnDelete").onclick = async ()=>{
   const k = $("savedList").value || (state.name||"").trim();
   const all = savedAll();
   if(!k || !all[k]){ toast("Choose a saved appraisal to delete"); return; }
-  if(!confirm(`Delete saved appraisal "${k}"? This cannot be undone.`)) return;
+  if(!(await ask("Delete appraisal?",`Delete saved appraisal "${k}"? This cannot be undone.`,"Delete"))) return;
   delete all[k]; lsSet(LS_SAVED, JSON.stringify(all)); refreshSaved(); toast(`Deleted "${k}"`);
 };
-$("btnNew").onclick = ()=>{
-  const choice = confirm("Start a new appraisal?\n\nOK = blank appraisal with default assumptions\nCancel = keep current\n\n(Save first if you want to keep the current one.)");
+$("btnNew").onclick = async ()=>{
+  const choice = await ask("Start a new appraisal?","This clears the current figures and starts a blank appraisal with default assumptions. Save first if you want to keep the current one.","Start new");
   if(choice){ loadState(blank()); $("savedList").value=""; }
 };
-$("btnExport").onclick = ()=>{
-  const blob = new Blob([JSON.stringify({app:"dev-appraisal",version:1,exported:new Date().toISOString(),appraisal:state},null,2)],{type:"application/json"});
+function exportText(){ return JSON.stringify({app:"dev-appraisal",version:1,exported:new Date().toISOString(),appraisal:state},null,2); }
+$("btnExport").onclick = ()=>{ $("expText").value = exportText(); $("expDlg").showModal(); };
+$("expClose").onclick = ()=>$("expDlg").close();
+$("expCopy").onclick = ()=>{
+  const t=$("expText");
+  const fallback=()=>{ t.focus(); t.select(); toast("Selected: copy it with your device's Copy"); };
+  try{ navigator.clipboard.writeText(t.value).then(()=>toast("Copied to clipboard"), fallback); }catch(e){ fallback(); }
+};
+$("expDownload").onclick = ()=>{
+  const blob = new Blob([exportText()],{type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = ((state.name||"appraisal").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-")||"appraisal")+".json";
