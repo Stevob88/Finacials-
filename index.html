@@ -2,7 +2,15 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5fa8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Appraisal">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <title>Development Appraisal Tool</title>
 <meta name="description" content="Residential development appraisal and residual land value tool (UK, GBP) with a built-in learning layer.">
 <style>
@@ -31,7 +39,8 @@
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-header.top{background:var(--card);border-bottom:1px solid var(--line);padding:14px 16px}
+header.top{background:var(--card);border-bottom:1px solid var(--line);padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.steps{margin:0 0 10px;padding-left:20px;font-size:14.5px}.steps li{margin-bottom:6px}
 header.top h1{margin:0;font-size:20px}
 header.top p{margin:2px 0 0;color:var(--muted);font-size:13px}
 .disclaimer{margin:12px 16px 0;padding:10px 14px;border-radius:var(--radius);background:var(--warn-bg);color:var(--ink);border:1px solid var(--warn);font-size:13.5px}
@@ -162,8 +171,9 @@ footer{padding:0 16px 24px;color:var(--muted);font-size:12px}
 <body>
 
 <header class="top">
-  <h1>Development Appraisal Tool</h1>
-  <p>Residential schemes · UK · GBP · works offline in your browser</p>
+  <div><h1>Development Appraisal Tool</h1>
+  <p>Residential schemes · UK · GBP · works offline in your browser</p></div>
+  <button id="btnInstall" class="primary artifact-hide" hidden>Add to Home Screen</button>
 </header>
 
 <div class="disclaimer" role="note">
@@ -214,6 +224,12 @@ footer{padding:0 16px 24px;color:var(--muted);font-size:12px}
   <p>Copy this JSON and keep it somewhere safe (notes, email to yourself). Use Import JSON to load it back on any device.</p>
   <textarea id="expText" readonly aria-label="Appraisal JSON"></textarea>
   <div class="dlgbtns"><button type="button" id="expDownload" class="artifact-hide">Download .json</button><button type="button" id="expCopy">Copy</button><button type="button" class="primary" id="expClose">Close</button></div>
+</dialog>
+<dialog id="installDlg">
+  <h4>Add to your Home Screen</h4>
+  <p id="installIntro">Put the tool on your phone like an app. It opens full screen and works on site with no signal.</p>
+  <ol class="steps" id="installSteps"></ol>
+  <div class="dlgbtns"><button type="button" class="primary" id="installClose">Done</button></div>
 </dialog>
 <div class="toast" id="toast"></div>
 
@@ -847,6 +863,34 @@ $("fileImport").onchange = e=>{
   rd.readAsText(f);
 };
 $("btnPrint").onclick = ()=>window.print();
+
+/* ============================================================
+   7b. Home screen install + offline
+   ============================================================ */
+(function(){
+  const standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  const btn = $("btnInstall");
+  let deferred = null;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  const inSafari = isIOS && !/CriOS|FxiOS|EdgiOS|GSA\//.test(ua);
+  if(!standalone && location.protocol.startsWith("http")) btn.hidden = false;
+  window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred = e; btn.hidden = false; });
+  window.addEventListener("appinstalled", ()=>{ btn.hidden = true; toast("Added to your Home Screen"); });
+  btn.onclick = async ()=>{
+    if(deferred){ deferred.prompt(); try{ await deferred.userChoice; }catch(e){} deferred=null; return; }
+    let steps;
+    if(isIOS && !inSafari) steps = ["Open this page in <b>Safari</b> (iPhone only allows Home Screen apps from Safari). Copy the address from the bar above first.","Tap the <b>Share</b> button (square with an arrow pointing up).","Scroll down and tap <b>Add to Home Screen</b>.","Tap <b>Add</b>. The Appraisal icon appears on your Home Screen."];
+    else if(isIOS) steps = ["Tap the <b>Share</b> button (square with an arrow pointing up) at the bottom of Safari.","Scroll down the list and tap <b>Add to Home Screen</b>.","Tap <b>Add</b> in the top corner. The Appraisal icon appears on your Home Screen."];
+    else steps = ["Open your browser menu (⋮ or the share button).","Choose <b>Install app</b> or <b>Add to Home screen</b>.","Confirm. The Appraisal icon appears with your other apps."];
+    $("installSteps").innerHTML = steps.map(s=>`<li>${s}</li>`).join("");
+    $("installDlg").showModal();
+  };
+  $("installClose").onclick = ()=>$("installDlg").close();
+  if("serviceWorker" in navigator && location.protocol==="https:"){
+    try{ navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
+  }
+})();
 
 /* ============================================================
    8. Boot
